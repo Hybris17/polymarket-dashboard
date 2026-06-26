@@ -2,7 +2,12 @@ import streamlit as st
 import requests
 import json
 import pandas as pd
+import anthropic
+from dotenv import load_dotenv
 from database import create_table, save_snapshot, should_save_snapshot, get_history
+
+# Load the ANTHROPIC_API_KEY from the .env file into the environment
+load_dotenv()
 
 # Make sure the database and table exist before we do anything else
 create_table()
@@ -66,3 +71,28 @@ else:
     history_df["Time"] = pd.to_datetime(history_df["Time"])
     history_df = history_df.set_index("Time")
     st.line_chart(history_df)
+
+# --- AI summary ---
+st.subheader("What's driving these odds?")
+
+if st.button(f"Explain {selected_team}'s chances"):
+    with st.spinner("Asking Claude..."):
+        client = anthropic.Anthropic()  # automatically reads ANTHROPIC_API_KEY from environment
+        prob = teams[selected_team]
+
+        prompt = (
+            f"The prediction market Polymarket currently gives {selected_team} "
+            f"a {prob}% probability of winning the 2026 FIFA World Cup. "
+            f"In 3 sentences, explain what is likely driving this probability — "
+            f"consider their recent tournament performance, squad strength, and bracket position. "
+            f"Be specific and concise."
+        )
+
+        message = client.messages.create(
+            model="claude-haiku-4-5-20251001",  # fast and cheap — good for short summaries
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+
+        summary = message.content[0].text
+        st.write(summary)
