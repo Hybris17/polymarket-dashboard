@@ -12,8 +12,26 @@ load_dotenv()
 # Make sure the database and table exist before we do anything else
 create_table()
 
+# Flag emoji for each team
+FLAGS = {
+    "France": "🇫🇷", "Argentina": "🇦🇷", "Spain": "🇪🇸", "England": "🏴󠁧󠁢󠁥󠁮󠁧󠁿",
+    "Portugal": "🇵🇹", "Netherlands": "🇳🇱", "Brazil": "🇧🇷", "Germany": "🇩🇪",
+    "USA": "🇺🇸", "Norway": "🇳🇴", "Colombia": "🇨🇴", "Japan": "🇯🇵",
+    "Morocco": "🇲🇦", "Mexico": "🇲🇽", "Belgium": "🇧🇪", "Switzerland": "🇨🇭",
+    "Ivory Coast": "🇨🇮", "Croatia": "🇭🇷", "Canada": "🇨🇦", "Senegal": "🇸🇳",
+    "Austria": "🇦🇹", "Egypt": "🇪🇬", "Sweden": "🇸🇪", "South Korea": "🇰🇷",
+    "Ghana": "🇬🇭", "Bosnia-Herzegovina": "🇧🇦", "Uruguay": "🇺🇾", "Ecuador": "🇪🇨",
+    "Cape Verde": "🇨🇻", "Australia": "🇦🇺", "New Zealand": "🇳🇿", "Curaçao": "🇨🇼",
+    "Iran": "🇮🇷", "Algeria": "🇩🇿", "Paraguay": "🇵🇾", "Scotland": "🏴󠁧󠁢󠁳󠁣󠁴󠁿",
+    "Uzbekistan": "🇺🇿", "Iraq": "🇮🇶", "South Africa": "🇿🇦", "Congo DR": "🇨🇩",
+    "Saudi Arabia": "🇸🇦",
+}
+
 st.title("2026 FIFA World Cup Odds")
 st.caption("Live win probabilities from Polymarket")
+
+from datetime import datetime, timezone
+st.caption(f"Last updated: {datetime.now(timezone.utc).strftime('%Y-%m-%d %H:%M UTC')}")
 
 if st.button("Refresh odds"):
     st.rerun()
@@ -47,10 +65,26 @@ st.subheader("Current win probabilities")
 # Sort teams from highest to lowest probability
 sorted_teams = sorted(teams.items(), key=lambda x: -x[1])
 
-# Build a simple table using a pandas DataFrame
-df = pd.DataFrame(sorted_teams, columns=["Team", "Win probability (%)"])
+# Build a simple table using a pandas DataFrame — show top 10 by default
+show_all = st.toggle("Show all teams")
+display_teams = sorted_teams if show_all else sorted_teams[:10]
+
+df = pd.DataFrame(display_teams, columns=["Team", "Win probability (%)"])
+df["Team"] = df["Team"].apply(lambda t: f"{FLAGS.get(t, '')} {t}")  # prepend flag emoji
 df.index += 1  # start ranking at 1 instead of 0
-st.dataframe(df, use_container_width=True)
+st.dataframe(
+    df,
+    use_container_width=True,
+    column_config={
+        # renders the probability column as a visual progress bar
+        "Win probability (%)": st.column_config.ProgressColumn(
+            "Win probability (%)",
+            min_value=0,
+            max_value=100,
+            format="%.1f%%",
+        )
+    },
+)
 
 # --- Show historical chart for a selected team ---
 st.subheader("Track a team over time")

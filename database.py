@@ -53,6 +53,17 @@ def save_snapshot(teams_probs: dict):
     conn.close()
 
 
+def insert_historical_snapshot(team: str, prob: float, timestamp: str):
+    # Inserts a single historical data point — used by the backfill script
+    conn = get_connection()
+    conn.execute(
+        "INSERT INTO snapshots (team, prob, timestamp) VALUES (?, ?, ?)",
+        (team, prob, timestamp),
+    )
+    conn.commit()
+    conn.close()
+
+
 def get_history(team: str):
     # Returns a list of (timestamp, prob) tuples for a given team, oldest first.
     conn = get_connection()
