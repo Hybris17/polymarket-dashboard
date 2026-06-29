@@ -59,43 +59,6 @@ for market in markets:
 if should_save_snapshot(min_minutes=30):
     save_snapshot(teams)
 
-# --- Today's matches ---
-st.subheader("Today's matches")
-
-try:
-    fixtures = requests.get(
-        "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
-    ).json().get("events", [])
-
-    if not fixtures:
-        st.info("No matches scheduled today.")
-    else:
-        for match in fixtures:
-            competitors = match["competitions"][0]["competitors"]
-            home = competitors[0]["team"]["displayName"]
-            away = competitors[1]["team"]["displayName"]
-            status = match["status"]["type"]["description"]
-
-            home_prob = teams.get(home, None)
-            away_prob = teams.get(away, None)
-
-            # show each match as two columns: home team on left, away team on right
-            col1, col2, col3 = st.columns([2, 1, 2])
-            col1.metric(
-                label=f"{FLAGS.get(home, '')} {home}",
-                value=f"{home_prob}%" if home_prob else "—",
-            )
-            col2.markdown(f"<div style='text-align:center; padding-top:24px'>vs</div>", unsafe_allow_html=True)
-            col3.metric(
-                label=f"{FLAGS.get(away, '')} {away}",
-                value=f"{away_prob}%" if away_prob else "—",
-            )
-            st.caption(f"Status: {status}")
-            st.divider()
-
-except Exception:
-    st.info("Could not load today's fixtures.")
-
 # --- Show the leaderboard ---
 st.subheader("Current win probabilities")
 
@@ -122,6 +85,46 @@ st.dataframe(
         )
     },
 )
+
+# --- Today's matches ---
+st.subheader("Today's matches")
+
+try:
+    fixtures = requests.get(
+        "https://site.api.espn.com/apis/site/v2/sports/soccer/fifa.world/scoreboard"
+    ).json().get("events", [])
+
+    if not fixtures:
+        st.info("No matches scheduled today.")
+    else:
+        for match in fixtures:
+            competitors = match["competitions"][0]["competitors"]
+            home = competitors[0]["team"]["displayName"]
+            away = competitors[1]["team"]["displayName"]
+            status = match["status"]["type"]["description"]
+
+            # parse the UTC kickoff time into a readable string
+            kickoff_utc = datetime.strptime(match["date"], "%Y-%m-%dT%H:%MZ")
+            kickoff_str = kickoff_utc.strftime("%d %b %Y, %H:%M UTC")
+
+            home_prob = teams.get(home, None)
+            away_prob = teams.get(away, None)
+
+            col1, col2, col3 = st.columns([2, 1, 2])
+            col1.metric(
+                label=f"{FLAGS.get(home, '')} {home}",
+                value=f"{home_prob}%" if home_prob else "—",
+            )
+            col2.markdown("<div style='text-align:center; padding-top:24px'>vs</div>", unsafe_allow_html=True)
+            col3.metric(
+                label=f"{FLAGS.get(away, '')} {away}",
+                value=f"{away_prob}%" if away_prob else "—",
+            )
+            st.caption(f"{status} · {kickoff_str}")
+            st.divider()
+
+except Exception:
+    st.info("Could not load today's fixtures.")
 
 # --- Show historical chart for a selected team ---
 st.subheader("Track a team over time")
