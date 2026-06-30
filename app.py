@@ -59,6 +59,29 @@ for market in markets:
 if should_save_snapshot(min_minutes=30):
     save_snapshot(teams)
 
+# --- Fetch Kalshi odds ---
+KALSHI_NAME_MAP = {
+    "Bosnia and Herzegovina": "Bosnia-Herzegovina",
+}
+
+kalshi_teams = {}
+try:
+    kalshi_markets = requests.get(
+        "https://external-api.kalshi.com/trade-api/v2/markets",
+        params={"limit": 100, "series_ticker": "KXMENWORLDCUP", "status": "open"},
+    ).json().get("markets", [])
+
+    for m in kalshi_markets:
+        name = m.get("yes_sub_title")
+        bid = m.get("yes_bid_dollars")
+        ask = m.get("yes_ask_dollars")
+        if name and bid and ask:
+            prob = round((float(bid) + float(ask)) / 2 * 100, 1)
+            name = KALSHI_NAME_MAP.get(name, name)
+            kalshi_teams[name] = prob
+except Exception:
+    pass  # if Kalshi is down, skip silently
+
 # --- Show the leaderboard ---
 st.subheader("Current win probabilities")
 
@@ -69,20 +92,20 @@ sorted_teams = sorted(teams.items(), key=lambda x: -x[1])
 show_all = st.toggle("Show all teams")
 display_teams = sorted_teams if show_all else sorted_teams[:10]
 
-df = pd.DataFrame(display_teams, columns=["Team", "Win probability (%)"])
-df["Team"] = df["Team"].apply(lambda t: f"{FLAGS.get(t, '')} {t}")  # prepend flag emoji
-df.index += 1  # start ranking at 1 instead of 0
+df = pd.DataFrame(display_teams, columns=["Team", "Polymarket (%)"])
+df["Kalshi (%)"] = df["Team"].apply(lambda t: kalshi_teams.get(t))
+df["Team"] = df["Team"].apply(lambda t: f"{FLAGS.get(t, '')} {t}")
+df.index += 1
 st.dataframe(
     df,
     use_container_width=True,
     column_config={
-        # renders the probability column as a visual progress bar
-        "Win probability (%)": st.column_config.ProgressColumn(
-            "Win probability (%)",
-            min_value=0,
-            max_value=100,
-            format="%.1f%%",
-        )
+        "Polymarket (%)": st.column_config.ProgressColumn(
+            "Polymarket (%)", min_value=0, max_value=100, format="%.1f%%",
+        ),
+        "Kalshi (%)": st.column_config.ProgressColumn(
+            "Kalshi (%)", min_value=0, max_value=100, format="%.1f%%",
+        ),
     },
 )
 
