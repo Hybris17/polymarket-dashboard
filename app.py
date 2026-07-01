@@ -37,23 +37,30 @@ if st.button("Refresh odds"):
     st.rerun()
 
 # --- Fetch the World Cup event from Polymarket ---
-with st.spinner("Fetching latest odds..."):
-    response = requests.get(
-        "https://gamma-api.polymarket.com/events",
-        params={"slug": "world-cup-winner"},
-    )
-    response.raise_for_status()
-    event = response.json()[0]  # the API returns a list; we want the first (only) result
-    markets = event["markets"]
-
-# --- Extract only active (not yet eliminated) teams ---
 teams = {}
-for market in markets:
-    if not market.get("active") or market.get("closed"):
-        continue  # skip eliminated teams
-    team = market["groupItemTitle"]
-    yes_price = float(json.loads(market["outcomePrices"])[0])  # "Yes" = team wins
-    teams[team] = round(yes_price * 100, 1)  # convert 0.194 → 19.4
+try:
+    with st.spinner("Fetching latest odds..."):
+        response = requests.get(
+            "https://gamma-api.polymarket.com/events",
+            params={"slug": "world-cup-winner"},
+        )
+        response.raise_for_status()
+        events = response.json()
+        if not events:
+            st.error("Polymarket returned no data for this event. It may have ended or been renamed.")
+            st.stop()
+        markets = events[0]["markets"]
+
+    for market in markets:
+        if not market.get("active") or market.get("closed"):
+            continue
+        team = market["groupItemTitle"]
+        yes_price = float(json.loads(market["outcomePrices"])[0])
+        teams[team] = round(yes_price * 100, 1)
+
+except Exception as e:
+    st.error("Couldn't load odds from Polymarket right now. Please try again in a moment.")
+    st.stop()  # stop rendering the rest of the page gracefully
 
 # --- Save a snapshot only if 30+ minutes have passed since the last one ---
 if should_save_snapshot(min_minutes=30):
